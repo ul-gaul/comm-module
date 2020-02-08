@@ -12,4 +12,5 @@
 
 
 /* standard lib includes */
+#include "config_bits.h"
 #include "xc.h"
