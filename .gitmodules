@@ -1,0 +1,3 @@
+[submodule "comm-module.X/rocket-packet"]
+	path = comm-module.X/rocket-packet
+	url = git@github.com:ul-gaul/rocket-packet.git
