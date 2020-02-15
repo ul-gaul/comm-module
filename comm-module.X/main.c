@@ -7,8 +7,9 @@ int main(void) {
     int i;
 
 	/* set PPS for UART1 to use pins D2 (Rx) and D3 (Tx) */
-//    PB2DIVbits.PBDIV = 0x0001;
-//    PB2DIVbits.ON = 1;
+//    PB1DIVbits.PBDIV = 2;
+//    PB7DIVbits.ON = 0;
+    
 //
 //	U1RXR = 0x00;
 //	RPD3R = 0x01;
@@ -20,6 +21,7 @@ int main(void) {
 //    U1BRG = 13;
     
     i = 0;
+    CommandPacket cmdpkt;
     TRISDbits.TRISD3 = 0;
 	for(;;) {
 //		U1TXREG = message[i];

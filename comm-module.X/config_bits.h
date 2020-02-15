@@ -16,17 +16,17 @@
 #pragma config FPLLIDIV = DIV_4         // System PLL Input Divider (4x Divider)
 #pragma config FPLLRNG = RANGE_5_10_MHZ // System PLL Input Range (5-10 MHz Input)
 #pragma config FPLLICLK = PLL_POSC      // System PLL Input Clock Selection (POSC is input to the System PLL)
-#pragma config FPLLMULT = MUL_1         // System PLL Multiplier (PLL Multiply by 1)
+#pragma config FPLLMULT = MUL_100        // System PLL Multiplier (PLL Multiply by 100)
 #pragma config FPLLODIV = DIV_2         // System PLL Output Clock Divider (2x Divider)
 #pragma config UPLLFSEL = FREQ_24MHZ    // USB PLL Input Frequency Selection (USB PLL input is 24 MHz)
 
 // DEVCFG1
-#pragma config FNOSC = POSC             // Oscillator Selection Bits (Primary Osc (HS,EC))
+#pragma config FNOSC = SPLL             // Oscillator Selection Bits (System PLL)
 #pragma config DMTINTV = WIN_127_128    // DMT Count Window Interval (Window/Interval value is 127/128 counter value)
 #pragma config FSOSCEN = OFF            // Secondary Oscillator Enable (Disable SOSC)
-#pragma config IESO = ON               // Internal/External Switch Over (Disabled)
-#pragma config POSCMOD = EC             // Primary Oscillator Configuration (External clock mode)
-#pragma config OSCIOFNC = ON           // CLKO Output Signal Active on the OSCO Pin (Disabled)
+#pragma config IESO = OFF               // Internal/External Switch Over (Disabled)
+#pragma config POSCMOD = HS             // Primary Oscillator Configuration (HS osc mode)
+#pragma config OSCIOFNC = OFF           // CLKO Output Signal Active on the OSCO Pin (Disabled)
 #pragma config FCKSM = CSECME           // Clock Switching and Monitor Selection (Clock Switch Enabled, FSCM Enabled)
 #pragma config WDTPS = PS1048576        // Watchdog Timer Postscaler (1:1048576)
 #pragma config WDTSPGM = STOP           // Watchdog Timer Stop During Flash Programming (WDT stops during Flash programming)
@@ -48,8 +48,8 @@
 #pragma config SMCLR = MCLR_NORM        // Soft Master Clear Enable bit (MCLR pin generates a normal system Reset)
 #pragma config SOSCGAIN = GAIN_2X       // Secondary Oscillator Gain Control bits (2x gain setting)
 #pragma config SOSCBOOST = ON           // Secondary Oscillator Boost Kick Start Enable bit (Boost the kick start of the oscillator)
-#pragma config POSCGAIN = GAIN_2X       // Primary Oscillator Gain Control bits (2x gain setting)
-#pragma config POSCBOOST = ON           // Primary Oscillator Boost Kick Start Enable bit (Boost the kick start of the oscillator)
+#pragma config POSCGAIN = GAIN_1X       // Primary Oscillator Gain Control bits (1x gain setting)
+#pragma config POSCBOOST = OFF          // Primary Oscillator Boost Kick Start Enable bit (Normal start of the oscillator)
 #pragma config EJTAGBEN = NORMAL        // EJTAG Boot (Normal EJTAG functionality)
 
 // DEVCP0
