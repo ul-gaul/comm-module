@@ -2,12 +2,13 @@
  * Main source file for the communication module of the rocket
  * 
  * Authors:
- *      Simon Gaudy
- *      Maxime Guillemette
- *      Elliot Lafront
+ *	  Simon Gaudy
+ *	  Maxime Guillemette
+ *	  Elliot Lafront
  * 
- * Brief:
- *      TODO
+ *	Brief:
+ *		Module to handle the communication between the rocket and the 
+ *		ground station.
  */
 
 
