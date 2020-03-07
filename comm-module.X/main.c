@@ -21,7 +21,7 @@ int main(void) {
 	U1MODEbits.ON = 1;
 	U1STAbits.URXEN = 1;
 	U1STAbits.UTXEN = 1;
-	U1BRG = 13; // TODO adjust this value to get the baudrate
+	U1BRG = 82; // TODO adjust this value to get the baudrate
 
 
 	/* (test) set attributes for command packet */
@@ -48,6 +48,7 @@ int motor_control_send(uint8_t* src, unsigned int size) {
 		U1TXREG = src[i];
 		/* wait for TX buffer to be empty */
 		while(U1STAbits.TRMT == 0);
+        while (U1STAbits.UTXBF == 1);
 	}
 
 	return i;

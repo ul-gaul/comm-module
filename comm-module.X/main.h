@@ -22,5 +22,4 @@
 /* lib includes */
 #include "rocket-packet/rocket_packet.h"
 
-
 #endif /* _MAIN_H_ */
