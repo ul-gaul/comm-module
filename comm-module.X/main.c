@@ -10,16 +10,9 @@ unsigned int i;
 int main(void) {
 	unsigned int size;
 
-	/* set PPS for UART1 to use pins D2 (Rx) and D3 (Tx) */
-	U1RXR = 0x00;
-	RPD3R = 0x01;
-
-	/* init UART1 bus with 115200 baudrate */
-	U1MODEbits.ON = 1;
-	U1STAbits.URXEN = 1;
-	U1STAbits.UTXEN = 1;
-	U1BRG = 82; /* 115200 baudrate */
-
+	if (init_all()) {
+		while(1);
+	}
 
 	/* (test) set attributes for command packet */
 	cmdpkt.start_char = COMMAND_START;
@@ -41,9 +34,32 @@ int main(void) {
 }
 
 
+int init_all(void) {
+	int err = 0;
+
+	err = init_motor_control_uart();
+	if (err) goto exit;
+
+	err = init_antenna_uart();
+	if (err) goto exit;
+
+	err = init_avionics_uart();
+	if (err) goto exit;
+
+exit:
+	return err;
+}
+
+
 int init_motor_control_uart(void) {
 	UART1_RX_PS();
 	UART1_TX_PS();
+
+	/* init UART1 bus with 115200 baudrate */
+	U1MODEbits.ON = 1;
+	U1STAbits.URXEN = 1;
+	U1STAbits.UTXEN = 1;
+	U1BRG = 82;
 
 	return 0;
 }
@@ -53,6 +69,12 @@ int init_antenna_uart(void) {
 	UART2_RX_PS();
 	UART2_TX_PS();
 
+	/* init UART2 bus with 115200 baudrate */
+	U2MODEbits.ON = 1;
+	U2STAbits.URXEN = 1;
+	U2STAbits.UTXEN = 1;
+	U2BRG = 82;
+
 	return 0;
 }
 
@@ -60,6 +82,12 @@ int init_antenna_uart(void) {
 int init_avionics_uart(void) {
 	UART3_RX_PS();
 	UART3_TX_PS();
+
+	/* init UART3 bus with 115200 baudrate */
+	U3MODEbits.ON = 1;
+	U3STAbits.URXEN = 1;
+	U3STAbits.UTXEN = 1;
+	U3BRG = 82;
 
 	return 0;
 }
