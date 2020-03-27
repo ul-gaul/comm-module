@@ -22,12 +22,17 @@ int main(void) {
 
 //	size = serialize_command_packet(&cmdpkt, serial_buf);
 
+	i = 0;
 	/* main loop */
 	for(;;) {
-		cmdpkt.function = (i % 2 == 0) ? 1 : 2;
-		cmdpkt.arg = i % 7;
-		serialize_command_packet(&cmdpkt, serial_buf);
-		motor_control_send(serial_buf, size);
+//		cmdpkt.function = (i % 2 == 0) ? 1 : 2;
+//		cmdpkt.arg = i % 7;
+//		serialize_command_packet(&cmdpkt, serial_buf);
+//		motor_control_send(serial_buf, size);
+		if (U2STAbits.URXDA == 1) {
+			serial_buf[i] = U2RXREG;
+			if (++i >= 32) i = 0;
+		}
 	}
 
 	return 0;
