@@ -18,6 +18,8 @@
 /* standard lib includes */
 #include "config_bits.h"
 #include "xc.h"
+#include <sys/kmem.h>
+#include <sys/attribs.h>
 
 /* lib includes */
 #include "rocket-packet/rocket_packet.h"
@@ -36,13 +38,27 @@
 #define UART3_RX_PS() (U3RXR = 0b1000)
 #define UART3_TX_PS() (RPB9R = 0b0001)
 
+/* see rocket packet documentation for details */
+#define CRC_POLY 0x1021
+#define CRC_LEN 16
+#define CRC_SEED 0xffff
+
+
+/* buffer for commands from ground control station */
+#define SAS_RX_BUF_SIZE 32
+char sas_rx_buf[SAS_RX_BUF_SIZE];
+unsigned int sas_rx_buf_index;
+unsigned int test;
+
 
 /* public functions */
 int init_all(void);
 int init_motor_control_uart(void);
 int init_antenna_uart(void);
 int init_avionics_uart(void);
+int init_antenna_dma(void);
 int motor_control_send(uint8_t* src, unsigned int size);
+//void __ISR_AT_VECTOR(_DMA0_VECTOR, IPL5AUTO) _dma_antenna_interrupt_h(void);
 
 
 #endif /* _MAIN_H_ */
