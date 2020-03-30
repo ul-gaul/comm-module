@@ -89,10 +89,6 @@ int init_antenna_uart(void) {
 	U2STAbits.URXEN = 1;
 	U2STAbits.UTXEN = 1;
 	U2BRG = 82;
-	
-	/* TODO: remove once not testing */
-	sas_rx_buf_index = 0;
-	test = 0;
 
 	/*
 	 * UART2 interrupts:
@@ -103,9 +99,10 @@ int init_antenna_uart(void) {
 	IPC36bits.U2RXIP = 1;
 	IPC36bits.U2RXIS = 3;
 
-
 	/* init DMA for UART2 RX on channel 0 */
 	err = init_antenna_dma();
+	
+	sas_cmd_received = none;
 
 	return err;
 }
@@ -128,12 +125,13 @@ int init_avionics_uart(void) {
 int init_antenna_dma(void) {
 	/* enable DMA controller */
 	DMACONbits.ON = 1;
-//	DCRCXOR = CRC_POLY;
-//	DCRCDATA = CRC_SEED;
+	
 	/* CRC enabled, poly len = 16, background mode, CRC on channel 0 */
-//	DCRCCONbits.PLEN = CRC_LEN - 1;
-//	DCRCCONbits.CRCEN = 1;
-//	DCRCCONbits.CRCEN = 0; /* re-enable when not debugging */
+	DCRCXOR = CRC_POLY;
+	DCRCDATA = CRC_SEED;
+	DCRCCONbits.PLEN = CRC_LEN - 1;
+	DCRCCONbits.CRCEN = 1;
+
 	/* start IRQ is UART2 RX (146) , no pattern matching */
 	DCH0ECONbits.CHSIRQ = 146;
 	DCH0ECONbits.SIRQEN = 1;
@@ -141,24 +139,19 @@ int init_antenna_dma(void) {
 	/* source physical address is UART2 RX */
 	DCH0SSA = KVA_TO_PA((void *) &U2RXREG);
 	/* destination physical address is ground control buffer */
-//	DCH0DSA = KVA_TO_PA((void *) &sas_rx_buf[0]);
-	DCH0DSA = KVA_TO_PA(sas_rx_buf);
+	DCH0DSA = KVA_TO_PA((void *) sas_rx_buf);
 	/* source size and source byte offset */
 	DCH0SSIZ = 1;
 	DCH0SPTR = 0;
 	/* destination size and destination byte offset */
-	DCH0DSIZ = 8;
+	DCH0DSIZ = SAS_RX_BUF_SIZE;
 	DCH0DPTR = 0;
 	/* 1 byte per UART transfer */
 	DCH0CSIZ = 1;
 
-//	/* enable block complete and error interrupts */
-//	DCH0INTbits.CHDDIE = 1;
+	/* enable block complete and error interrupts */
 	DCH0INTbits.CHBCIE = 1;
-//	DCH0INTbits.CHCCIE = 1;
 	DCH0INTbits.CHERIE = 1;
-//	/* fuck it, enable all interrupts */
-//	DCH0INT = 0x00ff0000;
 
 	/* channel 0 on, auto re-enable, highest priority, no chaining */
 	DCH0CONbits.CHEN = 1;
@@ -191,9 +184,21 @@ int motor_control_send(uint8_t* src, unsigned int size) {
 
 
 void __ISR_AT_VECTOR(_DMA0_VECTOR, IPL5SRS) _dma_antenna_interrupt_h(void) {
-//	U1TXREG = 'f';
+	unsigned int err;
 
-	test++;
+	/* check for DMA errors */
+	err = DCH0INT;
+
+	/* check if CRC is good */
+	if (DCRCDATA == 0) {
+		sas_cmd_received = crc_valid;
+	} else {
+		sas_cmd_received = crc_error;
+	}
+	
+	/* seed the CRC */
+	DCRCDATA = CRC_SEED;
+
 	/* clear DMA0 interrupt bits */
 	DCH0INT &= ~0x000000ff;
 	IFS4bits.DMA0IF = 0;
@@ -201,11 +206,6 @@ void __ISR_AT_VECTOR(_DMA0_VECTOR, IPL5SRS) _dma_antenna_interrupt_h(void) {
 
 
 void __ISR_AT_VECTOR(_UART2_RX_VECTOR, IPL1SRS) _uart2_rx_isr_h(void) {
-	
-//	serial_buf[sas_rx_buf_index % 8] = sas_rx_buf_index & 0xff;
-//	DCH0CONbits.CHEN = 1; /* start the transfer i guess? */
-//	DCH0ECONbits.CFORCE = 1;
-//	if (++sas_rx_buf_index >= 8) {
+	/* clear UART interrupt */
 	IFS4bits.U2RXIF = 0;
-//	}
 }

@@ -41,14 +41,18 @@
 /* see rocket packet documentation for details */
 #define CRC_POLY 0x1021
 #define CRC_LEN 16
-#define CRC_SEED 0xffff
 
+/*
+ * warning: the hardware CRC is using the indirect algorithm,
+ * we need to convert the direct seed value (0xffff) to 0x84cf
+ * to get the seed for the indirect algorithm
+ */
+#define CRC_SEED 0x84cf
 
 /* buffer for commands from ground control station */
-#define SAS_RX_BUF_SIZE 32
+#define SAS_RX_BUF_SIZE 8
 char __attribute__((coherent)) sas_rx_buf[SAS_RX_BUF_SIZE];
-unsigned int sas_rx_buf_index;
-unsigned int test;
+enum {none, crc_valid, crc_error} sas_cmd_received;
 
 
 /* public functions */
@@ -58,7 +62,6 @@ int init_antenna_uart(void);
 int init_avionics_uart(void);
 int init_antenna_dma(void);
 int motor_control_send(uint8_t* src, unsigned int size);
-//void __ISR_AT_VECTOR(_DMA0_VECTOR, IPL5AUTO) _dma_antenna_interrupt_h(void);
 
 
 #endif /* _MAIN_H_ */
