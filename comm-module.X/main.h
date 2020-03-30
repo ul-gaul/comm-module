@@ -46,7 +46,7 @@
 
 /* buffer for commands from ground control station */
 #define SAS_RX_BUF_SIZE 32
-char sas_rx_buf[SAS_RX_BUF_SIZE];
+char __attribute__((coherent)) sas_rx_buf[SAS_RX_BUF_SIZE];
 unsigned int sas_rx_buf_index;
 unsigned int test;
 

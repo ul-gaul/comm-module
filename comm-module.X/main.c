@@ -141,7 +141,8 @@ int init_antenna_dma(void) {
 	/* source physical address is UART2 RX */
 	DCH0SSA = KVA_TO_PA((void *) &U2RXREG);
 	/* destination physical address is ground control buffer */
-	DCH0DSA = KVA_TO_PA((void *) &sas_rx_buf[0]);
+//	DCH0DSA = KVA_TO_PA((void *) &sas_rx_buf[0]);
+	DCH0DSA = KVA_TO_PA(sas_rx_buf);
 	/* source size and source byte offset */
 	DCH0SSIZ = 1;
 	DCH0SPTR = 0;
@@ -153,15 +154,15 @@ int init_antenna_dma(void) {
 
 //	/* enable block complete and error interrupts */
 //	DCH0INTbits.CHDDIE = 1;
-//	DCH0INTbits.CHBCIE = 1;
+	DCH0INTbits.CHBCIE = 1;
 //	DCH0INTbits.CHCCIE = 1;
-//	DCH0INTbits.CHERIE = 1;
-	/* fuck it, enable all interrupts */
-	DCH0INT = 0x00ff0000;
+	DCH0INTbits.CHERIE = 1;
+//	/* fuck it, enable all interrupts */
+//	DCH0INT = 0x00ff0000;
 
 	/* channel 0 on, auto re-enable, highest priority, no chaining */
-	DCH0CONbits.CHEN = 1;
-	DCH0CONbits.CHAEN = 1;
+	DCH0CONbits.CHEN = 0;
+	DCH0CONbits.CHAEN = 0;
 	DCH0CONbits.CHPRI = 3;
 
 	/* clear DMA0 interrupt flag */
@@ -201,9 +202,10 @@ void __ISR_AT_VECTOR(_DMA0_VECTOR, IPL5SRS) _dma_antenna_interrupt_h(void) {
 
 void __ISR_AT_VECTOR(_UART2_RX_VECTOR, IPL1SRS) _uart2_rx_isr_h(void) {
 	
-	serial_buf[sas_rx_buf_index] = 'a';
-	if (++sas_rx_buf_index >= 32) {
-		sas_rx_buf_index = 0;
+	serial_buf[sas_rx_buf_index % 8] = sas_rx_buf_index & 0xff;
+	DCH0CONbits.CHEN = 1; /* start the transfer i guess? */
+	DCH0ECONbits.CFORCE = 1;
+	if (++sas_rx_buf_index >= 8) {
+		IFS4bits.U2RXIF = 0;
 	}
-	IFS4bits.U2RXIF = 0;
 }
