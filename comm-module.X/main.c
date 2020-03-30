@@ -161,8 +161,8 @@ int init_antenna_dma(void) {
 //	DCH0INT = 0x00ff0000;
 
 	/* channel 0 on, auto re-enable, highest priority, no chaining */
-	DCH0CONbits.CHEN = 0;
-	DCH0CONbits.CHAEN = 0;
+	DCH0CONbits.CHEN = 1;
+	DCH0CONbits.CHAEN = 1;
 	DCH0CONbits.CHPRI = 3;
 
 	/* clear DMA0 interrupt flag */
@@ -202,10 +202,10 @@ void __ISR_AT_VECTOR(_DMA0_VECTOR, IPL5SRS) _dma_antenna_interrupt_h(void) {
 
 void __ISR_AT_VECTOR(_UART2_RX_VECTOR, IPL1SRS) _uart2_rx_isr_h(void) {
 	
-	serial_buf[sas_rx_buf_index % 8] = sas_rx_buf_index & 0xff;
-	DCH0CONbits.CHEN = 1; /* start the transfer i guess? */
-	DCH0ECONbits.CFORCE = 1;
-	if (++sas_rx_buf_index >= 8) {
-		IFS4bits.U2RXIF = 0;
-	}
+//	serial_buf[sas_rx_buf_index % 8] = sas_rx_buf_index & 0xff;
+//	DCH0CONbits.CHEN = 1; /* start the transfer i guess? */
+//	DCH0ECONbits.CFORCE = 1;
+//	if (++sas_rx_buf_index >= 8) {
+	IFS4bits.U2RXIF = 0;
+//	}
 }
