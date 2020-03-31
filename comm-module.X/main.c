@@ -8,14 +8,13 @@ unsigned int i;
 
 
 int main(void) {
-	unsigned int size;
 
 	if (init_all()) {
 		while(1);
 	}
 
 	/* (test) set attributes for command packet */
-	cmdpkt.start_char = COMMAND_START;
+	cmdpkt.start_short = COMMAND_START;
 	cmdpkt.function = 1;
 	cmdpkt.arg = 1;
 	cmdpkt.crc = 0;
@@ -41,7 +40,6 @@ int main(void) {
 
 int init_all(void) {
 	int err = 0;
-	
 
 	err = init_motor_control_uart();
 	if (err) goto exit;
@@ -52,6 +50,15 @@ int init_all(void) {
 	err = init_avionics_uart();
 	if (err) goto exit;
 
+	err = init_interrupts();
+	if (err) goto exit;
+
+exit:
+	return err;
+}
+
+
+int init_interrupts(void) {
 	/* enable multi-vector interrupt */
 	INTCONbits.MVEC = 1;
 	/* assign shadow set 7 through 1 to priority level 7 through 1 */
@@ -59,8 +66,7 @@ int init_all(void) {
 	/* enable interrupts */
 	__builtin_enable_interrupts();
 
-exit:
-	return err;
+	return 0;
 }
 
 
@@ -184,14 +190,9 @@ int motor_control_send(uint8_t* src, unsigned int size) {
 
 
 void __ISR_AT_VECTOR(_DMA0_VECTOR, IPL5SRS) _dma_antenna_interrupt_h(void) {
-	unsigned int err;
-
-	/* check for DMA errors */
-	err = DCH0INT;
-
 	/* check if CRC is good */
 	if (DCRCDATA == 0) {
-		sas_cmd_received = crc_valid;
+		sas_cmd_received = ack;
 	} else {
 		sas_cmd_received = crc_error;
 	}

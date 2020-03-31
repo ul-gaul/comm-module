@@ -50,13 +50,14 @@
 #define CRC_SEED 0x84cf
 
 /* buffer for commands from ground control station */
-#define SAS_RX_BUF_SIZE 8
+#define SAS_RX_BUF_SIZE sizeof(CommandPacket)
 char __attribute__((coherent)) sas_rx_buf[SAS_RX_BUF_SIZE];
-enum {none, crc_valid, crc_error} sas_cmd_received;
+enum {none, ack, crc_error, func_error, arg_error} sas_cmd_received;
 
 
 /* public functions */
 int init_all(void);
+int init_interrupts(void);
 int init_motor_control_uart(void);
 int init_antenna_uart(void);
 int init_avionics_uart(void);
