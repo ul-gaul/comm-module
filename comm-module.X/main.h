@@ -25,6 +25,11 @@
 #include "rocket-packet/rocket_packet.h"
 
 
+/* function-like macros */
+#define ENABLE_DMA_CHANNEL(c) (DCH ## c ## CONbits.CHEN = 1)
+#define DISABLE_DMA_CHANNEL(c) (DCH ## c ## CONbits.CHEN = 0)
+
+
 /*
  * pin out definitions:
  * 	MOTOR CONTROL	RX: D2, TX: D3
@@ -49,10 +54,24 @@
  */
 #define CRC_SEED 0x84cf
 
+/* routes the motor control UART can take */
+#define MCU_ROUTE_ACK 0
+#define MCU_ROUTE_DATA 1
+
 /* buffer for commands from ground control station */
 #define SAS_RX_BUF_SIZE sizeof(CommandPacket)
 char __attribute__((coherent)) sas_rx_buf[SAS_RX_BUF_SIZE];
-enum {none, ack, crc_error, func_error, arg_error} sas_cmd_received;
+
+/* buffer for sending rocket packets to the ground control station */
+#define SAS_TX_BUF_SIZE (sizeof(AckPacket) + sizeof(RocketPacket))
+char __attribute__((coherent)) sas_tx_buf[SAS_TX_BUF_SIZE];
+
+/* global struct to manage motor commands */
+struct {
+    enum {idle, cmd_received, waiting, done} state;
+	enum {none, ack=1, nack=0xff} ack;
+    CommandPacket cmd;
+} motor_cmd_h;
 
 
 /* public functions */
@@ -61,8 +80,16 @@ int init_interrupts(void);
 int init_motor_control_uart(void);
 int init_antenna_uart(void);
 int init_avionics_uart(void);
-int init_antenna_dma(void);
-int motor_control_send(uint8_t* src, unsigned int size);
+int init_dma(void);
+int init_sas_rx_dma(void);
+int init_sas_tx_dma(void);
+int init_ack_rx_dma(void);
+int init_ack_tx_dma(void);
+int init_motor_data_rx_dma(void);
+int init_avionics_data_rx_dma(void);
+int route_motor_control_uart(int route);
+int run_motor_cmd(void);
+int motor_control_send(char* src, unsigned int size);
 
 
 #endif /* _MAIN_H_ */
