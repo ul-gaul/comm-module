@@ -2,7 +2,6 @@
 
 
 /* global variables */
-CommandPacket cmdpkt;
 unsigned int i;
 
 
@@ -44,10 +43,13 @@ int init_all(void) {
 	err = init_avionics_uart();
 	if (err) goto exit;
 
+	err = init_sas_rx_dma();
+	if (err) goto exit;
+
 	err = init_interrupts();
 	if (err) goto exit;
 
-	err = init_dma();
+	err = enable_dma();
 	if (err) goto exit;
 
 exit:
@@ -96,14 +98,11 @@ int init_antenna_uart(void) {
 	/*
 	 * UART2 interrupts:
 	 * enable RX interrupt
-	 * priority = 5, sub-priority = 2
+	 * priority = 1, sub-priority = 2
 	 */
 	IEC4bits.U2RXIE = 1;
 	IPC36bits.U2RXIP = 1;
 	IPC36bits.U2RXIS = 3;
-
-	/* init DMA for UART2 RX on channel 0 */
-	err = init_sas_rx_dma();
 
 	return err;
 }
@@ -123,7 +122,7 @@ int init_avionics_uart(void) {
 }
 
 
-int init_dma(void) {
+int enable_dma(void) {
 	/* enable DMA controller */
 	DMACONbits.ON = 1;
 
@@ -138,8 +137,8 @@ int init_sas_rx_dma(void) {
 	DCRCCONbits.PLEN = CRC_LEN - 1;
 	DCRCCONbits.CRCEN = 1;
 
-	/* start IRQ is UART2 RX (146) , no pattern matching */
-	DCH0ECONbits.CHSIRQ = 146;
+	/* start IRQ is UART2 RX , no pattern matching */
+	DCH0ECONbits.CHSIRQ = _UART2_RX_VECTOR;
 	DCH0ECONbits.SIRQEN = 1;
 
 	/* source physical address is UART2 RX */
@@ -282,7 +281,7 @@ int motor_control_send(char* src, unsigned int size) {
 }
 
 
-void __ISR_AT_VECTOR(_DMA0_VECTOR, IPL5SRS) _dma_antenna_interrupt_h(void) {
+void __ISR_AT_VECTOR(_DMA0_VECTOR, IPL5SRS) _dma_antenna_isr_h(void) {
 	/* check if CRC is good */
 	motor_cmd_h.state = cmd_received;
 	if (DCRCDATA == 0) {

@@ -43,7 +43,7 @@
 #define UART3_RX_PS() (U3RXR = 0b1000)
 #define UART3_TX_PS() (RPB9R = 0b0001)
 
-/* see rocket packet documentation for details */
+/* CRC definitions, see rocket packet documentation for details */
 #define CRC_POLY 0x1021
 #define CRC_LEN 16
 
@@ -69,7 +69,7 @@ char __attribute__((coherent)) sas_tx_buf[SAS_TX_BUF_SIZE];
 /* global struct to manage motor commands */
 struct {
     enum {idle, cmd_received, waiting, done} state;
-	enum {none, ack=1, nack=0xff} ack;
+	enum {none, ack=ACK, nack=NACK} ack;
     CommandPacket cmd;
 } motor_cmd_h;
 
@@ -80,7 +80,7 @@ int init_interrupts(void);
 int init_motor_control_uart(void);
 int init_antenna_uart(void);
 int init_avionics_uart(void);
-int init_dma(void);
+int enable_dma(void);
 int init_sas_rx_dma(void);
 int init_sas_tx_dma(void);
 int init_ack_rx_dma(void);
