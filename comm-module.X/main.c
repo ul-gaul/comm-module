@@ -1,26 +1,19 @@
 #include "main.h"
 
 
-/* global variables */
-unsigned int i;
-
-
 int main(void) {
 
 	if (init_all()) {
 		while(1);
 	}
 
-	/* (test) set attributes for command packet */
-	cmdpkt.start_short = COMMAND_START;
-	cmdpkt.function = 1;
-	cmdpkt.arg = 1;
-	cmdpkt.crc = 0;
-
-	i = 0;
 	/* reset command handler */
 	motor_cmd_h.state = idle;
 	motor_cmd_h.ack = none;
+
+	/* route CRC to channel 7 (data to ground control station) */
+	route_dma_crc(0);
+
 	/* main loop */
 	for(;;) {
 		/* execute tasks */
@@ -44,6 +37,9 @@ int init_all(void) {
 	if (err) goto exit;
 
 	err = init_sas_rx_dma();
+	if (err) goto exit;
+
+	err = init_ack_rx_dma();
 	if (err) goto exit;
 
 	err = init_interrupts();
@@ -79,6 +75,15 @@ int init_motor_control_uart(void) {
 	U1STAbits.UTXEN = 1;
 	U1BRG = 82;
 
+	/*
+	 * UART1 interrupts:
+	 * enable RX interrupt
+	 * priority = 1, sub-priority = 3
+	 */
+	IEC3bits.U1RXIE = 1;
+	IPC28bits.U1RXIP = 1;
+	IPC28bits.U1RXIS = 3;
+
 	return 0;
 }
 
@@ -98,7 +103,7 @@ int init_antenna_uart(void) {
 	/*
 	 * UART2 interrupts:
 	 * enable RX interrupt
-	 * priority = 1, sub-priority = 2
+	 * priority = 1, sub-priority = 3
 	 */
 	IEC4bits.U2RXIE = 1;
 	IPC36bits.U2RXIP = 1;
@@ -126,18 +131,18 @@ int enable_dma(void) {
 	/* enable DMA controller */
 	DMACONbits.ON = 1;
 
-	return 0;
-}
-
-
-int init_sas_rx_dma(void) {
 	/* CRC enabled, poly len = 16, background mode, CRC on channel 0 */
 	DCRCXOR = CRC_POLY;
 	DCRCDATA = CRC_SEED;
 	DCRCCONbits.PLEN = CRC_LEN - 1;
 	DCRCCONbits.CRCEN = 1;
 
-	/* start IRQ is UART2 RX , no pattern matching */
+	return 0;
+}
+
+
+int init_sas_rx_dma(void) {
+	/* start IRQ is UART2 RX, no pattern matching */
 	DCH0ECONbits.CHSIRQ = _UART2_RX_VECTOR;
 	DCH0ECONbits.SIRQEN = 1;
 
@@ -180,12 +185,73 @@ int init_sas_tx_dma(void) {
 
 
 int init_ack_rx_dma(void) {
+	/* start IRQ is UART1 RX, no pattern matching */
+	DCH1ECONbits.CHSIRQ = _UART1_RX_VECTOR;
+	DCH1ECONbits.SIRQEN = 1;
+
+	/* source physical address is UART1 RX register */
+	DCH1SSA = KVA_TO_PA((void *) U1RXREG);
+	/* destination physical address is the ack buffer */
+	DCH1DSA = KVA_TO_PA((void *) ack_tx_buf);
+	/* source size and offset */
+	DCH1SSIZ = 1;
+	DCH1SPTR = 0;
+	/* destination size and offset */
+	DCH1DSIZ = ACK_TX_BUF_SIZE;
+	DCH1DPTR = 0;
+	/* 1 byte per UART transfer */
+	DCH1CSIZ = 1;
+
+	/* enable block complete and error interrupts */
+	DCH1INTbits.CHBCIE = 1;
+	DCH1INTbits.CHERIE = 1;
+
+	/* channel 1 off, highest priority */
+	DCH1CONbits.CHEN = 0;
+	DCH1CONbits.CHPRI = 3;
+
+	/* clear DMA1 interrupt flag */
+	IFS4bits.DMA1IF = 0;
+	/* disable DMA1 interrupt with priority 5 and sub-priority 2 */
+	IEC4bits.DMA1IE = 0;
+	IPC33bits.DMA1IP = 5;
+	IPC33bits.DMA1IS = 2;
 
 	return 0;
 }
 
 
 int init_ack_tx_dma(void) {
+	/* source physical address is ack buffer */
+	DCH2SSA = KVA_TO_PA((void *) ack_tx_buf);
+	/* destination physical address is UART2 TX */
+	DCH2DSA = KVA_TO_PA((void *) &U2TXREG);
+	/* source size and source offset */
+	DCH2SSIZ = ACK_TX_BUF_SIZE;
+	DCH2SPTR = 0;
+	/* destination size and destination offset */
+	DCH2DSIZ = 1;
+	DCH2DPTR = 0;
+	/* 1 byte per UART transfer */
+	DCH2CSIZ = 1;
+
+	/* enable block complete and error interrupt */
+	DCH2INTbits.CHBCIE = 1;
+	/* TODO: maybe it need to be source done instead of block done */
+//	DCH2INTbits.CHSDIE = 1;
+	DCH2INTbits.CHERIE = 1;
+
+	/* channel 2 on, auto re-enable, highest priority, no chaining */
+	DCH0CONbits.CHEN = 1;
+	DCH0CONbits.CHAEN = 1;
+	DCH0CONbits.CHPRI = 3;
+
+	/* clear DMA2 interrupt flag */
+	IFS4bits.DMA2IF = 0;
+	/* disable DMA2 interrupt with priority 5 and sub-priority 2 */
+	IEC4bits.DMA2IE = 0;
+	IPC34bits.DMA2IP = 5;
+	IPC34bits.DMA2IS = 2;
 
 	return 0;
 }
@@ -228,6 +294,39 @@ int route_motor_control_uart(int route) {
 }
 
 
+int route_dma_crc(int channel) {
+	int err = 0;
+
+	switch (channel) {
+	case 0:
+		/* background mode */
+		DCRCCONbits.CRCCH = 0;
+		DCRCCONbits.CRCAPP = 0;
+		break;
+	case 1:
+		/* background mode */
+		DCRCCONbits.CRCCH = 1;
+		DCRCCONbits.CRCAPP = 0;
+		break;
+	case 2:
+		/* append mode */
+		DCRCCONbits.CRCCH = 2;
+		DCRCCONbits.CRCAPP = 1;
+		break;
+	case 7:
+		/* append mode */
+		DCRCCONbits.CRCCH = 7;
+		DCRCCONbits.CRCAPP = 1;
+		break;
+	default:
+		/* do nothing, other channels don't use CRC */
+		break;
+	}
+
+	return err;
+}
+
+
 int run_motor_cmd(void) {
 
 	switch (motor_cmd_h.state) {
@@ -248,14 +347,18 @@ int run_motor_cmd(void) {
 		motor_control_send(sas_rx_buf, sizeof(CommandPacket));
 		/* set new state to waiting */
 		motor_cmd_h.state = waiting;
+		/* route UART1 to DMA1 (ACK buffer) */
+		route_motor_control_uart(MCU_ROUTE_ACK);
 		break;
 	case waiting:
-		/* send acknowledge packet with NACK */
-		/* TODO: testing, switching to done right away */
-		motor_cmd_h.state = done;
+		/* do nothing, wait for DMA1 interrupt to receive ACK from motor */
 		break;
 	case done:
-		/* send ACK to ground control */
+		/* route UART1 to DMA5 (data buffer) */
+		route_motor_control_uart(MCU_ROUTE_DATA);
+		route_dma_crc(2);
+		/* send ACK to ground control by forcing a DMA2 transfer */
+		DCH2ECONbits.CFORCE = 1;
 		/* reset state */
 		motor_cmd_h.state = idle;
 		break;
@@ -299,7 +402,39 @@ void __ISR_AT_VECTOR(_DMA0_VECTOR, IPL5SRS) _dma_antenna_isr_h(void) {
 }
 
 
+void __ISR_AT_VECTOR(_DMA1_VECTOR, IPL5SRS) _dma_motor_ack_isr_h(void) {
+	/* set state to done */
+	motor_cmd_h.state = done;
+
+	/* clear DMA1 interrupt bits */
+	DCH1INT &= ~0x000000ff;
+	IFS4bits.DMA1IF = 0;
+}
+
+
+void __ISR_AT_VECTOR(_DMA2_VECTOR, IPL5SRS) _dma_ack_tx_isr_h(void) {
+	/* ack is done sending, re-route CRC to channel 7 */
+	/*
+	 * TODO: change from 0 to 7 when channel 0 auto routes it 
+	 * when is starts to receive a command
+	 */
+	route_dma_crc(0);
+
+	/* clear DMA2 interrupt bits */
+	DCH2INT &= ~0x000000ff;
+	IFS4bits.DMA2IF = 0;
+}
+
+
+void __ISR_AT_VECTOR(_UART1_RX_VECTOR, IPL1SRS) _uart1_rx_isr_h(void) {
+	/* clear UART interrupt flag */
+	IFS3bits.U1RXIF = 0;
+}
+
+
 void __ISR_AT_VECTOR(_UART2_RX_VECTOR, IPL1SRS) _uart2_rx_isr_h(void) {
-	/* clear UART interrupt */
+	/* clear UART interrupt flag */
 	IFS4bits.U2RXIF = 0;
 }
+
+

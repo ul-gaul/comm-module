@@ -26,8 +26,18 @@
 
 
 /* function-like macros */
-#define ENABLE_DMA_CHANNEL(c) (DCH ## c ## CONbits.CHEN = 1)
-#define DISABLE_DMA_CHANNEL(c) (DCH ## c ## CONbits.CHEN = 0)
+
+#define ENABLE_DMA_CHANNEL(c) \
+	do { \
+		DCH ## c ## CONbits.CHEN = 1; \
+		IEC4bits.DMA ## c ## IE = 1; \
+	} while (0)
+
+#define DISABLE_DMA_CHANNEL(c) \
+	do { \
+		DCH ## c ## CONbits.CHEN = 0; \
+		IEC4bits.DMA ## c ## IE = 0; \
+	} while (0)
 
 
 /*
@@ -62,8 +72,12 @@
 #define SAS_RX_BUF_SIZE sizeof(CommandPacket)
 char __attribute__((coherent)) sas_rx_buf[SAS_RX_BUF_SIZE];
 
+/* buffer for acknowledge packets to ground station */
+#define ACK_TX_BUF_SIZE sizeof(AckPacket)
+char __attribute__((coherent)) ack_tx_buf[ACK_TX_BUF_SIZE];
+
 /* buffer for sending rocket packets to the ground control station */
-#define SAS_TX_BUF_SIZE (sizeof(AckPacket) + sizeof(RocketPacket))
+#define SAS_TX_BUF_SIZE sizeof(RocketPacket)
 char __attribute__((coherent)) sas_tx_buf[SAS_TX_BUF_SIZE];
 
 /* global struct to manage motor commands */
@@ -88,6 +102,7 @@ int init_ack_tx_dma(void);
 int init_motor_data_rx_dma(void);
 int init_avionics_data_rx_dma(void);
 int route_motor_control_uart(int route);
+int route_dma_crc(int channel);
 int run_motor_cmd(void);
 int motor_control_send(char* src, unsigned int size);
 
