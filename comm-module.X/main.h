@@ -18,55 +18,13 @@
 /* standard lib includes */
 #include "config_bits.h"
 #include "xc.h"
-#include <sys/kmem.h>
 #include <sys/attribs.h>
 
 /* lib includes */
 #include "rocket-packet/rocket_packet.h"
+#include "dma.h"
+#include "uart.h"
 
-
-/* function-like macros */
-
-#define ENABLE_DMA_CHANNEL(c) \
-	do { \
-		DCH ## c ## CONbits.CHEN = 1; \
-		IEC4bits.DMA ## c ## IE = 1; \
-	} while (0)
-
-#define DISABLE_DMA_CHANNEL(c) \
-	do { \
-		DCH ## c ## CONbits.CHEN = 0; \
-		IEC4bits.DMA ## c ## IE = 0; \
-	} while (0)
-
-
-/*
- * pin out definitions:
- * 	MOTOR CONTROL	RX: D2, TX: D3
- * 	ANTENNA			RX: D4, TX: D5
- * 	AVIONICS		RX: B3, TX: B9
- */
-#define UART1_RX_PS() (U1RXR = 0b0000)
-#define UART1_TX_PS() (RPD3R = 0b0001)
-#define UART2_RX_PS() (U2RXR = 0b0100)
-#define UART2_TX_PS() (RPD5R = 0b0010)
-#define UART3_RX_PS() (U3RXR = 0b1000)
-#define UART3_TX_PS() (RPB9R = 0b0001)
-
-/* CRC definitions, see rocket packet documentation for details */
-#define CRC_POLY 0x1021
-#define CRC_LEN 16
-
-/*
- * warning: the hardware CRC is using the indirect algorithm,
- * we need to convert the direct seed value (0xffff) to 0x84cf
- * to get the seed for the indirect algorithm
- */
-#define CRC_SEED 0x84cf
-
-/* routes the motor control UART can take */
-#define MCU_ROUTE_ACK 0
-#define MCU_ROUTE_DATA 1
 
 /* buffer for commands from ground control station */
 #define SAS_RX_BUF_SIZE sizeof(CommandPacket)
@@ -91,16 +49,6 @@ struct {
 /* public functions */
 int init_all(void);
 int init_interrupts(void);
-int init_motor_control_uart(void);
-int init_antenna_uart(void);
-int init_avionics_uart(void);
-int enable_dma(void);
-int init_sas_rx_dma(void);
-int init_sas_tx_dma(void);
-int init_ack_rx_dma(void);
-int init_ack_tx_dma(void);
-int init_motor_data_rx_dma(void);
-int init_avionics_data_rx_dma(void);
 int route_motor_control_uart(int route);
 int route_dma_crc(int channel);
 int run_motor_cmd(void);
