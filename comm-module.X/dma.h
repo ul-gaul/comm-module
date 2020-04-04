@@ -9,6 +9,7 @@
 /* includes */
 #include "xc.h"
 #include <sys/kmem.h>
+#include <sys/attribs.h>
 
 
 /* macros */
@@ -48,5 +49,9 @@ int init_ack_rx_dma(char* dst, unsigned int dst_size);
 int init_ack_tx_dma(char* src, unsigned int src_size);
 int init_motor_data_rx_dma(void);
 int init_avionics_data_rx_dma(void);
+extern void __ISR_AT_VECTOR(_DMA0_VECTOR, IPL5SRS) _dma_antenna_isr_h(void);
+extern void __ISR_AT_VECTOR(_DMA1_VECTOR, IPL5SRS) _dma_motor_ack_isr_h(void);
+extern void __ISR_AT_VECTOR(_DMA2_VECTOR, IPL5SRS) _dma_ack_tx_isr_h(void);
+
 
 #endif /* _DMA_H_ */

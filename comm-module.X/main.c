@@ -36,13 +36,13 @@ int init_all(void) {
 	err = init_avionics_uart();
 	if (err) goto exit;
 
-	err = init_sas_rx_dma(sas_rx_buf, CMD_PACKET_SIZE);
+	err = init_sas_rx_dma(sas_rx_buf, SAS_RX_BUF_SIZE);
 	if (err) goto exit;
 
-	err = init_ack_rx_dma(ack_tx_buf, ACK_PACKET_SIZE);
+	err = init_ack_rx_dma(ack_tx_buf, ACK_TX_BUF_SIZE);
 	if (err) goto exit;
 	
-	err = init_ack_tx_dma(ack_tx_buf, ACK_PACKET_SIZE);
+	err = init_ack_tx_dma(ack_tx_buf, ACK_TX_BUF_SIZE);
 	if (err) goto exit;
 
 	err = init_interrupts();
@@ -110,7 +110,9 @@ int route_dma_crc(int channel) {
 	case 2:
 		/* append mode */
 		DCRCCONbits.CRCCH = 2;
+		/* TODO: it should work in append mode */
 		DCRCCONbits.CRCAPP = 1;
+//		DCRCCONbits.CRCAPP = 0;
 		break;
 	case 7:
 		/* append mode */
@@ -137,9 +139,12 @@ int run_motor_cmd(void) {
 		unpack_command_packet(&motor_cmd_h.cmd, (uint8_t *) sas_rx_buf);
 		/* check that values are valid */
 		if ((motor_cmd_h.cmd.function > 2)
-			|| (motor_cmd_h.cmd.arg > 5)) {
+				|| (motor_cmd_h.cmd.arg > 5)) {
 			motor_cmd_h.ack = nack;
-			motor_cmd_h.state = done;
+		}
+		/* don't send command if invalid CRC or command */
+		if (motor_cmd_h.ack != ack) {
+			motor_cmd_h.state = cmd_not_executed;
 			break;
 		}
 		/* send command to motor control */
@@ -152,13 +157,23 @@ int run_motor_cmd(void) {
 	case waiting:
 		/* do nothing, wait for DMA1 interrupt to receive ACK from motor */
 		break;
+	case cmd_not_executed:
+		/* form acknowledge packet and copy it to the transmit buffer */
+		motor_cmd_h.ackpkt.start_short = COMMAND_START;
+		motor_cmd_h.ackpkt.id = motor_cmd_h.cmd.id;
+		motor_cmd_h.ackpkt.ack = motor_cmd_h.ack;
+		pack_ack_packet(&motor_cmd_h.ackpkt, (uint8_t *) ack_tx_buf);
+		motor_cmd_h.state = done;
+		break;
+	case cmd_executed:
+		/* ack packet is already in the ack_tx_buffer */
+		motor_cmd_h.state = done;
+		break;
 	case done:
-		/* route UART1 to DMA5 (data buffer) */
-		route_motor_control_uart(MCU_ROUTE_DATA);
 		route_dma_crc(2);
-		/* send ACK to ground control by forcing a DMA2 transfer */
-		DCH2ECONbits.CFORCE = 1;
-		/* reset state */
+		route_motor_control_uart(MCU_ROUTE_DATA);
+		sas_ack_send();
+		/* reset state machine */
 		motor_cmd_h.state = idle;
 		break;
 	default:
@@ -180,6 +195,23 @@ int motor_control_send(char* src, unsigned int size) {
 	}
 
 	return i;
+}
+
+
+int sas_ack_send(void) {
+	/* enable the DMA channel and the UART TX interrupt */
+	DCH2CONbits.CHEN = 1;
+	IEC4bits.DMA2IE = 1;
+	IEC4bits.U2TXIE = 1;
+	/* seed the CRC */
+	DCRCDATA = CRC_SEED;
+	/* force a DMA transfer of the AckPacket to the SAS */
+	DCH2ECONbits.CFORCE = 1;
+	
+	/* wait for transfer completion */
+	while (DCH2CONbits.CHBUSY == 1);
+
+	return 0;
 }
 
 
@@ -217,23 +249,17 @@ void __ISR_AT_VECTOR(_DMA2_VECTOR, IPL5SRS) _dma_ack_tx_isr_h(void) {
 	 * TODO: change from 0 to 7 when channel 0 auto routes it 
 	 * when is starts to receive a command
 	 */
-	route_dma_crc(0);
+
+	/* disable the DMA channel and the UART TX interrupt */
+	DCH2CONbits.CHEN = 0;
+	IEC4bits.DMA2IE = 0;
+	IEC4bits.U2TXIE = 0;
+	
+	/* abort the transfer */
+	DCH2ECONbits.CABORT = 1;
 
 	/* clear DMA2 interrupt bits */
 	DCH2INT &= ~0x000000ff;
 	IFS4bits.DMA2IF = 0;
 }
-
-
-void __ISR_AT_VECTOR(_UART1_RX_VECTOR, IPL1SRS) _uart1_rx_isr_h(void) {
-	/* clear UART interrupt flag */
-	IFS3bits.U1RXIF = 0;
-}
-
-
-void __ISR_AT_VECTOR(_UART2_RX_VECTOR, IPL1SRS) _uart2_rx_isr_h(void) {
-	/* clear UART interrupt flag */
-	IFS4bits.U2RXIF = 0;
-}
-
 

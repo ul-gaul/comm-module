@@ -38,12 +38,17 @@ int init_antenna_uart(void) {
 
 	/*
 	 * UART2 interrupts:
-	 * enable RX interrupt
+	 * enable RX and TX interrupt
 	 * priority = 1, sub-priority = 3
 	 */
+	IFS4bits.U2RXIF = 0;
+	IFS4bits.U2TXIF = 0;
 	IEC4bits.U2RXIE = 1;
+	IEC4bits.U2TXIE = 0;
 	IPC36bits.U2RXIP = 1;
+	IPC36bits.U2TXIP = 1;
 	IPC36bits.U2RXIS = 3;
+	IPC36bits.U2TXIS = 3;
 
 	return err;
 }
@@ -61,5 +66,23 @@ int init_avionics_uart(void) {
 
 	return 0;
 }
+
+
+void __ISR_AT_VECTOR(_UART1_RX_VECTOR, IPL1SRS) _uart1_rx_isr_h(void) {
+	/* clear UART interrupt flag */
+	IFS3bits.U1RXIF = 0;
+}
+
+
+void __ISR_AT_VECTOR(_UART2_RX_VECTOR, IPL1SRS) _uart2_rx_isr_h(void) {
+	/* clear UART interrupt flag */
+	IFS4bits.U2RXIF = 0;
+}
+
+//
+//void __ISR_AT_VECTOR(_UART2_TX_VECTOR, IPL1SRS) _uart2_tx_isr_h(void) {
+//	/* clear UART interrupt flag */
+//	IFS4bits.U2TXIF = 0;
+//}
 
 

@@ -59,7 +59,7 @@ int init_sas_tx_dma(void) {
 
 
 int init_ack_rx_dma(char* dst, unsigned int dst_size) {
-	/* start IRQ is UART1 RX, no pattern matching */
+	/* start IRQ is UART1 RX */
 	DCH1ECONbits.CHSIRQ = _UART1_RX_VECTOR;
 	DCH1ECONbits.SIRQEN = 1;
 
@@ -96,6 +96,10 @@ int init_ack_rx_dma(char* dst, unsigned int dst_size) {
 
 
 int init_ack_tx_dma(char* src, unsigned int src_size) {
+	/* start IRQ is UART2 TX, enable the interrupt only when ready to send */
+	DCH2ECONbits.CHSIRQ = _UART2_TX_VECTOR;
+	DCH2ECONbits.SIRQEN = 1;
+
 	/* source physical address is ack buffer */
 	DCH2SSA = KVA_TO_PA((void *) src);
 	/* destination physical address is UART2 TX */
@@ -111,14 +115,14 @@ int init_ack_tx_dma(char* src, unsigned int src_size) {
 
 	/* enable block complete and error interrupt */
 	DCH2INTbits.CHBCIE = 1;
-	/* TODO: maybe it need to be source done instead of block done */
-//	DCH2INTbits.CHSDIE = 1;
 	DCH2INTbits.CHERIE = 1;
+	/* TODO: remove this once done testing */
+	DCH2INTbits.CHSHIE = 1;
 
-	/* channel 2 on, auto re-enable, highest priority, no chaining */
-	DCH0CONbits.CHEN = 1;
-	DCH0CONbits.CHAEN = 1;
-	DCH0CONbits.CHPRI = 3;
+	/* channel 2 on, auto re-enable off, highest priority, no chaining */
+	DCH2CONbits.CHEN = 0;
+	DCH2CONbits.CHAEN = 0;
+	DCH2CONbits.CHPRI = 3;
 
 	/* clear DMA2 interrupt flag */
 	IFS4bits.DMA2IF = 0;
@@ -141,5 +145,4 @@ int init_avionics_data_rx_dma(void) {
 
 	return 0;
 }
-
 
