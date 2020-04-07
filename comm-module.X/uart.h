@@ -31,9 +31,11 @@
 int init_motor_control_uart(void);
 int init_antenna_uart(void);
 int init_avionics_uart(void);
+int motor_control_send(char* src, unsigned int size);
+int antenna_send(char* src, unsigned int size);
 void __ISR_AT_VECTOR(_UART1_RX_VECTOR, IPL1SRS) _uart1_rx_isr_h(void);
 void __ISR_AT_VECTOR(_UART2_RX_VECTOR, IPL1SRS) _uart2_rx_isr_h(void);
-//void __ISR_AT_VECTOR(_UART2_TX_VECTOR, IPL1SRS) _uart2_tx_isr_h(void);
+
 
 #endif /* _UART_H_ */
 

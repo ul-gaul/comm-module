@@ -38,17 +38,13 @@ int init_antenna_uart(void) {
 
 	/*
 	 * UART2 interrupts:
-	 * enable RX and TX interrupt
+	 * enable RX interrupt
 	 * priority = 1, sub-priority = 3
 	 */
 	IFS4bits.U2RXIF = 0;
-	IFS4bits.U2TXIF = 0;
 	IEC4bits.U2RXIE = 1;
-	IEC4bits.U2TXIE = 0;
 	IPC36bits.U2RXIP = 1;
-	IPC36bits.U2TXIP = 1;
 	IPC36bits.U2RXIS = 3;
-	IPC36bits.U2TXIS = 3;
 
 	return err;
 }
@@ -68,6 +64,34 @@ int init_avionics_uart(void) {
 }
 
 
+int motor_control_send(char* src, unsigned int size) {
+	unsigned int i;
+
+	for (i = 0; i < size; ++i) {
+		U1TXREG = src[i];
+		/* wait for TX buffer to be empty */
+		while (U1STAbits.TRMT == 0);
+		while (U1STAbits.UTXBF == 1);
+	}
+
+	return i;
+}
+
+
+int antenna_send(char* src, unsigned int size) {
+	unsigned int i;
+
+	for (i = 0; i < size; ++i) {
+		U2TXREG = src[i];
+		/* wait for TX buffer to be empty */
+		while (U2STAbits.TRMT == 0);
+		while (U2STAbits.UTXBF == 1);
+	}
+
+	return i;
+}
+
+
 void __ISR_AT_VECTOR(_UART1_RX_VECTOR, IPL1SRS) _uart1_rx_isr_h(void) {
 	/* clear UART interrupt flag */
 	IFS3bits.U1RXIF = 0;
@@ -78,11 +102,4 @@ void __ISR_AT_VECTOR(_UART2_RX_VECTOR, IPL1SRS) _uart2_rx_isr_h(void) {
 	/* clear UART interrupt flag */
 	IFS4bits.U2RXIF = 0;
 }
-
-//
-//void __ISR_AT_VECTOR(_UART2_TX_VECTOR, IPL1SRS) _uart2_tx_isr_h(void) {
-//	/* clear UART interrupt flag */
-//	IFS4bits.U2TXIF = 0;
-//}
-
 

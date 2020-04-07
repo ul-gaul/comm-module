@@ -52,6 +52,7 @@ int init_sas_rx_dma(char* dst, unsigned int dst_size) {
 	return 0;
 }
 
+
 int init_sas_tx_dma(void) {
 
 	return 0;
@@ -95,41 +96,53 @@ int init_ack_rx_dma(char* dst, unsigned int dst_size) {
 }
 
 
-int init_ack_tx_dma(char* src, unsigned int src_size) {
-	/* start IRQ is UART2 TX, enable the interrupt only when ready to send */
-	DCH2ECONbits.CHSIRQ = _UART2_TX_VECTOR;
-	DCH2ECONbits.SIRQEN = 1;
-
-	/* source physical address is ack buffer */
-	DCH2SSA = KVA_TO_PA((void *) src);
-	/* destination physical address is UART2 TX */
-	DCH2DSA = KVA_TO_PA((void *) &U2TXREG);
-	/* source size and source offset */
-	DCH2SSIZ = src_size;
-	DCH2SPTR = 0;
-	/* destination size and destination offset */
-	DCH2DSIZ = 1;
-	DCH2DPTR = 0;
-	/* 1 byte per UART transfer */
-	DCH2CSIZ = 1;
+int init_crccalc_dma(void) {
+	/* no offset on source or destination */
+	DCH7SPTR = 0;
+	DCH7DPTR = 0;
 
 	/* enable block complete and error interrupt */
-	DCH2INTbits.CHBCIE = 1;
-	DCH2INTbits.CHERIE = 1;
-	/* TODO: remove this once done testing */
-	DCH2INTbits.CHSHIE = 1;
+	DCH7INTbits.CHBCIE = 1;
+	DCH7INTbits.CHERIE = 1;
 
-	/* channel 2 on, auto re-enable off, highest priority, no chaining */
-	DCH2CONbits.CHEN = 0;
-	DCH2CONbits.CHAEN = 0;
-	DCH2CONbits.CHPRI = 3;
+	/* channel 7 on, auto re-enable, low priority, no chaining */
+	DCH7CONbits.CHEN = 1;
+	DCH7CONbits.CHAEN = 1;
+	DCH7CONbits.CHPRI = 3;
 
 	/* clear DMA2 interrupt flag */
-	IFS4bits.DMA2IF = 0;
+	IFS4bits.DMA7IF = 0;
 	/* disable DMA2 interrupt with priority 5 and sub-priority 2 */
-	IEC4bits.DMA2IE = 0;
-	IPC34bits.DMA2IP = 5;
-	IPC34bits.DMA2IS = 2;
+	IEC4bits.DMA7IE = 1;
+	IPC35bits.DMA7IP = 5;
+	IPC35bits.DMA7IS = 2;
+
+	return 0;
+}
+
+int crccalc(char* src, unsigned int size, unsigned int* crc) {
+	/* configure source and destination */
+	DCH7SSA = KVA_TO_PA((void *) src);
+	DCH7DSA = KVA_TO_PA((void *) src);
+	DCH7SSIZ = size;
+	DCH7DSIZ = size;
+	DCH7CSIZ = size;
+	
+	/* enable crc, route to channel 7 and background mode */
+	DCRCCONbits.CRCEN = 1;
+	DCRCCONbits.CRCCH = 7;
+	DCRCCONbits.CRCAPP = 0;
+	
+	/* seed the CRC and start the transfer */
+	DCRCDATA = CRC_SEED;
+
+	DCH7ECONbits.CFORCE = 1;
+	while (DCH7CONbits.CHBUSY == 1);
+
+	*crc = DCRCDATA;
+	
+	/* re-seed the CRC */
+	DCRCDATA = CRC_SEED;
 
 	return 0;
 }

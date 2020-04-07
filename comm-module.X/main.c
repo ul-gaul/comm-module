@@ -42,7 +42,7 @@ int init_all(void) {
 	err = init_ack_rx_dma(ack_tx_buf, ACK_TX_BUF_SIZE);
 	if (err) goto exit;
 	
-	err = init_ack_tx_dma(ack_tx_buf, ACK_TX_BUF_SIZE);
+	err = init_crccalc_dma();
 	if (err) goto exit;
 
 	err = init_interrupts();
@@ -107,18 +107,18 @@ int route_dma_crc(int channel) {
 		DCRCCONbits.CRCCH = 1;
 		DCRCCONbits.CRCAPP = 0;
 		break;
-	case 2:
-		/* append mode */
-		DCRCCONbits.CRCCH = 2;
-		/* TODO: it should work in append mode */
-		DCRCCONbits.CRCAPP = 1;
+//	case 2:
+//		/* append mode */
+//		DCRCCONbits.CRCCH = 2;
+//		/* TODO: it should work in append mode */
+////		DCRCCONbits.CRCAPP = 1;
 //		DCRCCONbits.CRCAPP = 0;
-		break;
-	case 7:
-		/* append mode */
-		DCRCCONbits.CRCCH = 7;
-		DCRCCONbits.CRCAPP = 1;
-		break;
+//		break;
+//	case 7:
+//		/* append mode */
+//		DCRCCONbits.CRCCH = 7;
+//		DCRCCONbits.CRCAPP = 1;
+//		break;
 	default:
 		/* do nothing, other channels don't use CRC */
 		break;
@@ -162,6 +162,7 @@ int run_motor_cmd(void) {
 		motor_cmd_h.ackpkt.start_short = COMMAND_START;
 		motor_cmd_h.ackpkt.id = motor_cmd_h.cmd.id;
 		motor_cmd_h.ackpkt.ack = motor_cmd_h.ack;
+		motor_cmd_h.ackpkt.crc = 0;
 		pack_ack_packet(&motor_cmd_h.ackpkt, (uint8_t *) ack_tx_buf);
 		motor_cmd_h.state = done;
 		break;
@@ -170,7 +171,6 @@ int run_motor_cmd(void) {
 		motor_cmd_h.state = done;
 		break;
 	case done:
-		route_dma_crc(2);
 		route_motor_control_uart(MCU_ROUTE_DATA);
 		sas_ack_send();
 		/* reset state machine */
@@ -184,32 +184,15 @@ int run_motor_cmd(void) {
 }
 
 
-int motor_control_send(char* src, unsigned int size) {
-	unsigned int i;
-
-	for (i = 0; i < size; ++i) {
-		U1TXREG = src[i];
-		/* wait for TX buffer to be empty */
-		while (U1STAbits.TRMT == 0);
-		while (U1STAbits.UTXBF == 1);
-	}
-
-	return i;
-}
-
-
 int sas_ack_send(void) {
-	/* enable the DMA channel and the UART TX interrupt */
-	DCH2CONbits.CHEN = 1;
-	IEC4bits.DMA2IE = 1;
-	IEC4bits.U2TXIE = 1;
-	/* seed the CRC */
-	DCRCDATA = CRC_SEED;
-	/* force a DMA transfer of the AckPacket to the SAS */
-	DCH2ECONbits.CFORCE = 1;
-	
-	/* wait for transfer completion */
-	while (DCH2CONbits.CHBUSY == 1);
+	unsigned int crc;
+
+	crccalc(ack_tx_buf, ACK_PACKET_SIZE, &crc);
+
+	ack_tx_buf[ACK_PACKET_SIZE - 2] = (crc & 0x00ff) >> 0;
+	ack_tx_buf[ACK_PACKET_SIZE - 1] = (crc & 0xff00) >> 8;
+
+	antenna_send(ack_tx_buf, ACK_PACKET_SIZE);
 
 	return 0;
 }
@@ -243,23 +226,12 @@ void __ISR_AT_VECTOR(_DMA1_VECTOR, IPL5SRS) _dma_motor_ack_isr_h(void) {
 }
 
 
-void __ISR_AT_VECTOR(_DMA2_VECTOR, IPL5SRS) _dma_ack_tx_isr_h(void) {
-	/* ack is done sending, re-route CRC to channel 7 */
-	/*
-	 * TODO: change from 0 to 7 when channel 0 auto routes it 
-	 * when is starts to receive a command
-	 */
+void __ISR_AT_VECTOR(_DMA7_VECTOR, IPL5SRS) _dma_crccalc_isr_h(void) {
+	/* abort current transfer */
+	DCH7ECONbits.CABORT = 1;
 
-	/* disable the DMA channel and the UART TX interrupt */
-	DCH2CONbits.CHEN = 0;
-	IEC4bits.DMA2IE = 0;
-	IEC4bits.U2TXIE = 0;
-	
-	/* abort the transfer */
-	DCH2ECONbits.CABORT = 1;
-
-	/* clear DMA2 interrupt bits */
-	DCH2INT &= ~0x000000ff;
-	IFS4bits.DMA2IF = 0;
+	/* clear DMA7 interrupt bits */
+	DCH7INT &= ~0x000000ff;
+	IFS4bits.DMA7IF = 0;
 }
 

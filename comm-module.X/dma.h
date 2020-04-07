@@ -40,18 +40,20 @@
 #define MCU_ROUTE_ACK 0
 #define MCU_ROUTE_DATA 1
 
+
 /* public functions */
 
 int enable_dma(void);
 int init_sas_rx_dma(char* dst, unsigned int dst_size);
 int init_sas_tx_dma(void);
 int init_ack_rx_dma(char* dst, unsigned int dst_size);
-int init_ack_tx_dma(char* src, unsigned int src_size);
+int init_crccalc_dma(void);
+int crccalc(char* src, unsigned int size, unsigned int* crc);
 int init_motor_data_rx_dma(void);
 int init_avionics_data_rx_dma(void);
 extern void __ISR_AT_VECTOR(_DMA0_VECTOR, IPL5SRS) _dma_antenna_isr_h(void);
 extern void __ISR_AT_VECTOR(_DMA1_VECTOR, IPL5SRS) _dma_motor_ack_isr_h(void);
-extern void __ISR_AT_VECTOR(_DMA2_VECTOR, IPL5SRS) _dma_ack_tx_isr_h(void);
+extern void __ISR_AT_VECTOR(_DMA7_VECTOR, IPL5SRS) _dma_crccalc_isr_h(void);
 
 
 #endif /* _DMA_H_ */
