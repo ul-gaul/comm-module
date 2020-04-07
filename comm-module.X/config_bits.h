@@ -31,7 +31,7 @@
 #pragma config FWDTEN = OFF             // Watchdog Timer Enable (WDT Disabled)
 #pragma config FWDTWINSZ = WINSZ_25     // Watchdog Timer Window Size (Window size is 25%)
 #pragma config DMTCNT = DMT31           // Deadman Timer Count Selection (2^31 (2147483648))
-#pragma config FDMTEN = ON              // Deadman Timer Enable (Deadman Timer is enabled)
+#pragma config FDMTEN = OFF             // Deadman Timer Enable (Deadman Timer is disabled)
 // DEVCFG0
 #pragma config DEBUG = OFF              // Background Debugger Enable (Debugger is disabled)
 #pragma config JTAGEN = ON              // JTAG Enable (JTAG Port Enabled)
