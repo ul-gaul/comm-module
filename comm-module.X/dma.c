@@ -65,7 +65,7 @@ int init_ack_rx_dma(char* dst, unsigned int dst_size) {
 	DCH1ECONbits.SIRQEN = 1;
 
 	/* source physical address is UART1 RX register */
-	DCH1SSA = KVA_TO_PA((void *) U1RXREG);
+	DCH1SSA = KVA_TO_PA((void *) &U1RXREG);
 	/* destination physical address is the ack buffer */
 	DCH1DSA = KVA_TO_PA((void *) dst);
 	/* source size and offset */
@@ -81,14 +81,15 @@ int init_ack_rx_dma(char* dst, unsigned int dst_size) {
 	DCH1INTbits.CHBCIE = 1;
 	DCH1INTbits.CHERIE = 1;
 
-	/* channel 1 off, highest priority */
-	DCH1CONbits.CHEN = 0;
-	DCH1CONbits.CHPRI = 3;
+	/* channel 1 on, auto re-enable, highest priority */
+	DCH1CONbits.CHEN = 1;
+	DCH1CONbits.CHAEN = 1;
+	DCH1CONbits.CHPRI = 0;
 
 	/* clear DMA1 interrupt flag */
 	IFS4bits.DMA1IF = 0;
-	/* disable DMA1 interrupt with priority 5 and sub-priority 2 */
-	IEC4bits.DMA1IE = 0;
+	/* enable DMA1 interrupt with priority 5 and sub-priority 2 */
+	IEC4bits.DMA1IE = 1;
 	IPC33bits.DMA1IP = 5;
 	IPC33bits.DMA1IS = 2;
 
@@ -105,10 +106,9 @@ int init_crccalc_dma(void) {
 	DCH7INTbits.CHBCIE = 1;
 	DCH7INTbits.CHERIE = 1;
 
-	/* channel 7 on, auto re-enable, low priority, no chaining */
+	/* channel 7 on, low priority, no chaining */
 	DCH7CONbits.CHEN = 1;
-	DCH7CONbits.CHAEN = 1;
-	DCH7CONbits.CHPRI = 3;
+	DCH7CONbits.CHPRI = 1;
 
 	/* clear DMA2 interrupt flag */
 	IFS4bits.DMA7IF = 0;
@@ -124,6 +124,10 @@ int crccalc(char* src, unsigned int size, unsigned int* crc) {
 	unsigned int prev_channel;
 
 	prev_channel = DCRCCONbits.CRCCH;
+	DCRCCONbits.CRCEN = 0;
+	
+	/* re init DMA channel 7 because setting CABORT resets it */
+	init_crccalc_dma();
 
 	/* configure source and destination */
 	DCH7SSA = KVA_TO_PA((void *) src);
@@ -133,9 +137,9 @@ int crccalc(char* src, unsigned int size, unsigned int* crc) {
 	DCH7CSIZ = size;
 	
 	/* enable crc, route to channel 7 and background mode */
-	DCRCCONbits.CRCEN = 1;
 	DCRCCONbits.CRCCH = 7;
 	DCRCCONbits.CRCAPP = 0;
+	DCRCCONbits.CRCEN = 1;
 	
 	/* seed the CRC and start the transfer */
 	DCRCDATA = CRC_SEED;
@@ -148,13 +152,7 @@ int crccalc(char* src, unsigned int size, unsigned int* crc) {
 	/* re-seed the CRC and restore the old CRC channel */
 	DCRCDATA = CRC_SEED;
 	DCRCCONbits.CRCCH = prev_channel;
-
-	return 0;
-}
-
-
-int init_motor_data_rx_dma(void) {
-
+	DCRCCONbits.CRCEN = 1;
 	return 0;
 }
 

@@ -49,7 +49,6 @@ int init_sas_tx_dma(void);
 int init_ack_rx_dma(char* dst, unsigned int dst_size);
 int init_crccalc_dma(void);
 int crccalc(char* src, unsigned int size, unsigned int* crc);
-int init_motor_data_rx_dma(void);
 int init_avionics_data_rx_dma(void);
 extern void __ISR_AT_VECTOR(_DMA0_VECTOR, IPL5SRS) _dma_antenna_isr_h(void);
 extern void __ISR_AT_VECTOR(_DMA1_VECTOR, IPL5SRS) _dma_motor_ack_isr_h(void);

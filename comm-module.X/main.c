@@ -2,6 +2,10 @@
 
 
 int main(void) {
+	
+	/* set avionics and motor data pointers to their addresses */
+	avionics_data_buf = (char *) &sas_tx_buf[1];
+	motor_data_buf = (char *) &sas_tx_buf[1 + AVIONICS_DATA_SIZE];
 
 	if (init_all()) {
 		while(1);
@@ -39,7 +43,8 @@ int init_all(void) {
 	err = init_sas_rx_dma(sas_rx_buf, SAS_RX_BUF_SIZE);
 	if (err) goto exit;
 
-	err = init_ack_rx_dma(ack_tx_buf, ACK_TX_BUF_SIZE);
+	err = init_ack_rx_dma(motor_data_buf, MOTOR_DATA_SIZE);
+//	err = init_ack_rx_dma(ack_tx_buf, ACK_TX_BUF_SIZE);
 	if (err) goto exit;
 	
 	err = init_crccalc_dma();
@@ -71,23 +76,32 @@ int init_interrupts(void) {
 int route_motor_control_uart(int route) {
 	int err = 0;
 
+	/* wait for DMA to end transfer if applicable */
+//	while (DCH1CONbits.CHBUSY == 1);
+
+	DCH1CONbits.CHAEN = 0;
+	DCH1CONbits.CHEN = 0;
+
 	switch (route) {
 	case MCU_ROUTE_ACK:
-		/* disable channel 5 of DMA */
-		DISABLE_DMA_CHANNEL(5);
-		/* enable channel 1 of DMA */
-		ENABLE_DMA_CHANNEL(1);
+		/* set destination to ack buffer */
+		DCH1DSA = KVA_TO_PA((void *) ack_tx_buf);
+		DCH1DSIZ = ACK_PACKET_SIZE;
+		DCH1CONbits.CHPRI = 3;
 		break;
 	case MCU_ROUTE_DATA:
-		/* disable channel 1 of DMA */
-		DISABLE_DMA_CHANNEL(1);
-		/* enable channel 5 of DMA */
-		ENABLE_DMA_CHANNEL(5);
+		/* set destination to motor data buffer */
+		DCH1DSA = KVA_TO_PA((void *) ack_tx_buf);
+		DCH1DSIZ = MOTOR_DATA_SIZE;
+		DCH1CONbits.CHPRI = 0;
 		break;
 	default:
 		err = 1;
 		break;
 	}
+
+	DCH1CONbits.CHEN = 1;
+	DCH1CONbits.CHAEN = 1;
 
 	return err;
 }
@@ -147,12 +161,12 @@ int run_motor_cmd(void) {
 			motor_cmd_h.state = cmd_not_executed;
 			break;
 		}
+		/* route UART1 to ACK buffer */
+		route_motor_control_uart(MCU_ROUTE_ACK);
 		/* send command to motor control */
-		motor_control_send(sas_rx_buf, sizeof(CommandPacket));
+		motor_control_send(sas_rx_buf, CMD_PACKET_SIZE);
 		/* set new state to waiting */
 		motor_cmd_h.state = waiting;
-		/* route UART1 to DMA1 (ACK buffer) */
-		route_motor_control_uart(MCU_ROUTE_ACK);
 		break;
 	case waiting:
 		/* do nothing, wait for DMA1 interrupt to receive ACK from motor */
@@ -218,6 +232,7 @@ void __ISR_AT_VECTOR(_DMA0_VECTOR, IPL5SRS) _dma_antenna_isr_h(void) {
 
 void __ISR_AT_VECTOR(_DMA1_VECTOR, IPL5SRS) _dma_motor_ack_isr_h(void) {
 	/* set state to done */
+	/* TODO: add condition here to not set state to done when receiving motor data*/
 	motor_cmd_h.state = done;
 
 	/* clear DMA1 interrupt bits */

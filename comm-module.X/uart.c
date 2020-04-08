@@ -16,6 +16,7 @@ int init_motor_control_uart(void) {
 	 * enable RX interrupt
 	 * priority = 1, sub-priority = 3
 	 */
+	IFS3bits.U1RXIF = 0;
 	IEC3bits.U1RXIE = 1;
 	IPC28bits.U1RXIP = 1;
 	IPC28bits.U1RXIS = 3;

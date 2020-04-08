@@ -36,6 +36,8 @@ char __attribute__((coherent)) ack_tx_buf[ACK_TX_BUF_SIZE];
 /* buffer for sending rocket packets to the ground control station */
 #define SAS_TX_BUF_SIZE ROCKET_PACKET_SIZE
 char __attribute__((coherent)) sas_tx_buf[SAS_TX_BUF_SIZE];
+char* avionics_data_buf;
+char* motor_data_buf;
 
 /* global struct to manage motor commands */
 struct {
