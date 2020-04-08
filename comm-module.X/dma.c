@@ -121,6 +121,10 @@ int init_crccalc_dma(void) {
 }
 
 int crccalc(char* src, unsigned int size, unsigned int* crc) {
+	unsigned int prev_channel;
+
+	prev_channel = DCRCCONbits.CRCCH;
+
 	/* configure source and destination */
 	DCH7SSA = KVA_TO_PA((void *) src);
 	DCH7DSA = KVA_TO_PA((void *) src);
@@ -141,8 +145,9 @@ int crccalc(char* src, unsigned int size, unsigned int* crc) {
 
 	*crc = DCRCDATA;
 	
-	/* re-seed the CRC */
+	/* re-seed the CRC and restore the old CRC channel */
 	DCRCDATA = CRC_SEED;
+	DCRCCONbits.CRCCH = prev_channel;
 
 	return 0;
 }
