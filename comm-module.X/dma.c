@@ -81,7 +81,7 @@ int init_ack_rx_dma(char* dst, unsigned int dst_size) {
 	DCH1INTbits.CHBCIE = 1;
 	DCH1INTbits.CHERIE = 1;
 
-	/* channel 1 on, auto re-enable, highest priority */
+	/* channel 1 on, auto re-enable */
 	DCH1CONbits.CHEN = 1;
 	DCH1CONbits.CHAEN = 1;
 	DCH1CONbits.CHPRI = 0;

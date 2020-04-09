@@ -15,8 +15,9 @@ int main(void) {
 	motor_cmd_h.state = idle;
 	motor_cmd_h.ack = none;
 
-	/* route CRC to channel 7 (data to ground control station) */
-	route_dma_crc(0);
+	/* route CRC to channel 0 (receive commands from ground station) */
+	DCRCCONbits.CRCCH = 0;
+	DCRCCONbits.CRCAPP = 0;
 
 	/* main loop */
 	for(;;) {
@@ -43,8 +44,7 @@ int init_all(void) {
 	err = init_sas_rx_dma(sas_rx_buf, SAS_RX_BUF_SIZE);
 	if (err) goto exit;
 
-	err = init_ack_rx_dma(motor_data_buf, MOTOR_DATA_SIZE);
-//	err = init_ack_rx_dma(ack_tx_buf, ACK_TX_BUF_SIZE);
+	err = route_motor_control_uart(MCU_ROUTE_DATA);
 	if (err) goto exit;
 
 	err = init_interrupts();
@@ -73,66 +73,21 @@ int init_interrupts(void) {
 int route_motor_control_uart(int route) {
 	int err = 0;
 
-	/* wait for DMA to end transfer if applicable */
-//	while (DCH1CONbits.CHBUSY == 1);
+	/*
+	 * end current transfer but start no other,
+	 * wait for completion
+	 */
+	DCH1ECONbits.CABORT = 1;
+	while (DCH1CONbits.CHBUSY == 1);
 
-	DCH1CONbits.CHAEN = 0;
-	DCH1CONbits.CHEN = 0;
-
-	switch (route) {
-	case MCU_ROUTE_ACK:
-		/* set destination to ack buffer */
-		DCH1DSA = KVA_TO_PA((void *) ack_tx_buf);
-		DCH1DSIZ = ACK_PACKET_SIZE;
+	if (route == MCU_ROUTE_ACK) {
+		err = init_ack_rx_dma(ack_tx_buf, ACK_TX_BUF_SIZE);
 		DCH1CONbits.CHPRI = 3;
-		break;
-	case MCU_ROUTE_DATA:
-		/* set destination to motor data buffer */
-		DCH1DSA = KVA_TO_PA((void *) ack_tx_buf);
-		DCH1DSIZ = MOTOR_DATA_SIZE;
+	} else if (route == MCU_ROUTE_DATA) {
+		err = init_ack_rx_dma(motor_data_buf, MOTOR_DATA_SIZE);
 		DCH1CONbits.CHPRI = 0;
-		break;
-	default:
-		err = 1;
-		break;
-	}
-
-	DCH1CONbits.CHEN = 1;
-	DCH1CONbits.CHAEN = 1;
-
-	return err;
-}
-
-
-int route_dma_crc(int channel) {
-	int err = 0;
-
-	switch (channel) {
-	case 0:
-		/* background mode */
-		DCRCCONbits.CRCCH = 0;
-		DCRCCONbits.CRCAPP = 0;
-		break;
-	case 1:
-		/* background mode */
-		DCRCCONbits.CRCCH = 1;
-		DCRCCONbits.CRCAPP = 0;
-		break;
-//	case 2:
-//		/* append mode */
-//		DCRCCONbits.CRCCH = 2;
-//		/* TODO: it should work in append mode */
-////		DCRCCONbits.CRCAPP = 1;
-//		DCRCCONbits.CRCAPP = 0;
-//		break;
-//	case 7:
-//		/* append mode */
-//		DCRCCONbits.CRCCH = 7;
-//		DCRCCONbits.CRCAPP = 1;
-//		break;
-	default:
-		/* do nothing, other channels don't use CRC */
-		break;
+	} else {
+		err = -1;
 	}
 
 	return err;
@@ -158,10 +113,10 @@ int run_motor_cmd(void) {
 			motor_cmd_h.state = cmd_not_executed;
 			break;
 		}
-		/* route UART1 to ACK buffer */
-		route_motor_control_uart(MCU_ROUTE_ACK);
 		/* send command to motor control */
 		motor_control_send(sas_rx_buf, CMD_PACKET_SIZE);
+		/* route UART1 to ACK buffer */
+		route_motor_control_uart(MCU_ROUTE_ACK);
 		/* set new state to waiting */
 		motor_cmd_h.state = waiting;
 		break;

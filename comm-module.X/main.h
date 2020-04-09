@@ -54,7 +54,6 @@ struct {
 int init_all(void);
 int init_interrupts(void);
 int route_motor_control_uart(int route);
-int route_dma_crc(int channel);
 int run_motor_cmd(void);
 int motor_control_send(char* src, unsigned int size);
 int sas_ack_send(void);
