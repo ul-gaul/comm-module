@@ -97,25 +97,21 @@ int init_ack_rx_dma(char* dst, unsigned int dst_size) {
 }
 
 
-int init_crccalc_dma(void) {
-	/* no offset on source or destination */
-	DCH7SPTR = 0;
-	DCH7DPTR = 0;
-
-	/* enable block complete and error interrupt */
-	DCH7INTbits.CHBCIE = 1;
-	DCH7INTbits.CHERIE = 1;
-
+int init_crccalc_dma(char* src, unsigned int size) {
 	/* channel 7 on, low priority, no chaining */
 	DCH7CONbits.CHEN = 1;
 	DCH7CONbits.CHPRI = 1;
 
-	/* clear DMA2 interrupt flag */
-	IFS4bits.DMA7IF = 0;
-	/* disable DMA2 interrupt with priority 5 and sub-priority 2 */
-	IEC4bits.DMA7IE = 1;
-	IPC35bits.DMA7IP = 5;
-	IPC35bits.DMA7IS = 2;
+	/* configure source and destination */
+	DCH7SSA = KVA_TO_PA((void *) src);
+	DCH7DSA = KVA_TO_PA((void *) src);
+	DCH7SSIZ = size;
+	DCH7DSIZ = size;
+	DCH7CSIZ = size;
+
+	/* no offset on source or destination */
+	DCH7SPTR = 0;
+	DCH7DPTR = 0;
 
 	return 0;
 }
@@ -126,15 +122,8 @@ int crccalc(char* src, unsigned int size, unsigned int* crc) {
 	prev_channel = DCRCCONbits.CRCCH;
 	DCRCCONbits.CRCEN = 0;
 	
-	/* re init DMA channel 7 because setting CABORT resets it */
-	init_crccalc_dma();
-
-	/* configure source and destination */
-	DCH7SSA = KVA_TO_PA((void *) src);
-	DCH7DSA = KVA_TO_PA((void *) src);
-	DCH7SSIZ = size;
-	DCH7DSIZ = size;
-	DCH7CSIZ = size;
+	/* re init DMA channel 7 with args */
+	init_crccalc_dma(src, size);
 	
 	/* enable crc, route to channel 7 and background mode */
 	DCRCCONbits.CRCCH = 7;

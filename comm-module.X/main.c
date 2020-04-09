@@ -46,9 +46,6 @@ int init_all(void) {
 	err = init_ack_rx_dma(motor_data_buf, MOTOR_DATA_SIZE);
 //	err = init_ack_rx_dma(ack_tx_buf, ACK_TX_BUF_SIZE);
 	if (err) goto exit;
-	
-	err = init_crccalc_dma();
-	if (err) goto exit;
 
 	err = init_interrupts();
 	if (err) goto exit;
@@ -203,8 +200,8 @@ int sas_ack_send(void) {
 
 	crccalc(ack_tx_buf, ACK_PACKET_SIZE, &crc);
 
-	ack_tx_buf[ACK_PACKET_SIZE - 2] = (crc & 0x00ff) >> 0;
-	ack_tx_buf[ACK_PACKET_SIZE - 1] = (crc & 0xff00) >> 8;
+	ack_tx_buf[ACK_PACKET_SIZE - 1] = (crc & 0x00ff) >> 0;
+	ack_tx_buf[ACK_PACKET_SIZE - 2] = (crc & 0xff00) >> 8;
 
 	antenna_send(ack_tx_buf, ACK_PACKET_SIZE);
 
@@ -233,20 +230,10 @@ void __ISR_AT_VECTOR(_DMA0_VECTOR, IPL5SRS) _dma_antenna_isr_h(void) {
 void __ISR_AT_VECTOR(_DMA1_VECTOR, IPL5SRS) _dma_motor_ack_isr_h(void) {
 	/* set state to done */
 	/* TODO: add condition here to not set state to done when receiving motor data*/
-	motor_cmd_h.state = done;
+	motor_cmd_h.state = cmd_executed;
 
 	/* clear DMA1 interrupt bits */
 	DCH1INT &= ~0x000000ff;
 	IFS4bits.DMA1IF = 0;
-}
-
-
-void __ISR_AT_VECTOR(_DMA7_VECTOR, IPL5SRS) _dma_crccalc_isr_h(void) {
-	/* abort current transfer */
-	DCH7ECONbits.CABORT = 1;
-
-	/* clear DMA7 interrupt bits */
-	DCH7INT &= ~0x000000ff;
-	IFS4bits.DMA7IF = 0;
 }
 
