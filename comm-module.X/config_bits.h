@@ -3,7 +3,7 @@
 // 'C' source line config statements
 
 // DEVCFG3
-#pragma config USERID = 0xFFFF          // Enter Hexadecimal value (Enter Hexadecimal value)
+#pragma config USERID = 0xFFFF          // Enter Hexadecimal value
 #pragma config FMIIEN = ON              // Ethernet RMII/MII Enable (MII Enabled)
 #pragma config FETHIO = ON              // Ethernet I/O Pin Select (Default Ethernet I/O)
 #pragma config PGL1WAY = ON             // Permission Group Lock One Way Configuration (Allow only one reconfiguration)
@@ -14,9 +14,9 @@
 #pragma config FPLLIDIV = DIV_4         // System PLL Input Divider (4x Divider)
 #pragma config FPLLRNG = RANGE_5_10_MHZ // System PLL Input Range (5-10 MHz Input)
 #pragma config FPLLICLK = PLL_POSC      // System PLL Input Clock Selection (POSC is input to the System PLL)
-#pragma config FPLLMULT = MUL_100        // System PLL Multiplier (PLL Multiply by 60)
+#pragma config FPLLMULT = MUL_100        // System PLL Multiplier (PLL Multiply by 100)
 #pragma config FPLLODIV = DIV_2         // System PLL Output Clock Divider (2x Divider)
-#pragma config UPLLFSEL = FREQ_24MHZ    // USB PLL Input Frequency Selection (USB PLL input is 12 MHz)
+#pragma config UPLLFSEL = FREQ_24MHZ    // USB PLL Input Frequency Selection (USB PLL input is 24 MHz)
 // DEVCFG1
 #pragma config FNOSC = SPLL           // Oscillator Selection Bits (Fast RC Osc w/Div-by-N (FRCDIV))
 #pragma config DMTINTV = WIN_127_128    // DMT Count Window Interval (Window/Interval value is 127/128 counter value)
