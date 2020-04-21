@@ -42,9 +42,9 @@ typedef struct {
 
 sensor_sim_t sensors[SENSORS_NUM] = {
 	{.pin = 2,	.val = 0,	.mu = 10,	.sigma = 1},
-	{.pin = 3,	.val = 0,	.mu = 128,	.sigma = 10},
-	{.pin = 4,	.val = 0,	.mu = 50,	.sigma = 20},
-	{.pin = 5,	.val = 0,	.mu = 200,	.sigma = 4},
+	{.pin = 3,	.val = 0,	.mu = 60,	.sigma = 10},
+	{.pin = 4,	.val = 0,	.mu = 50,	.sigma = 2},
+	{.pin = 5,	.val = 0,	.mu = 150,	.sigma = 4},
 	{.pin = 6,	.val = 0,	.mu = 30,	.sigma = 5},
 };
 
@@ -81,8 +81,8 @@ void get_random_analog(sensor_sim_t* sensor) {
 	/* clip range to fit in analog values */
 	if (z0 < 0) {
 		z0 = 0;
-	} else if (z0 > 255) {
-		z0 = 255;
+	} else if (z0 > 168) {
+		z0 = 168;
 	}
 
 	sensor->val = (unsigned char) z0;
