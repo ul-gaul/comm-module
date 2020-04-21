@@ -52,6 +52,7 @@ struct {
 
 /* public functions */
 int init_all(void);
+int init_timer(void);
 int init_interrupts(void);
 int route_motor_control_uart(int route);
 int run_motor_cmd(void);

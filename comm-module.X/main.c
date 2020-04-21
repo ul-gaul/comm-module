@@ -47,6 +47,9 @@ int init_all(void) {
 	err = route_motor_control_uart(MCU_ROUTE_DATA);
 	if (err) goto exit;
 
+	err = init_timer();
+	if (err) goto exit;
+
 	err = init_interrupts();
 	if (err) goto exit;
 
@@ -55,6 +58,35 @@ int init_all(void) {
 
 exit:
 	return err;
+}
+
+
+int init_timer(void) {
+	/*
+	 * use timer 2 to generate an interrupt every 10 ms,
+	 * 16-bit mode, clock source is internal peripheral clock,
+	 * prescaler is 4
+	 */
+	T2CONbits.SIDL = 0;
+	T2CONbits.TGATE = 0;
+	T2CONbits.TCKPS = 0b110;
+	T2CONbits.T32 = 0;
+	T2CONbits.TCS = 0;
+
+	TMR2 = 0;
+
+	PR2 = 0x5ae7;
+
+	/* enable interrupts for timer 2, priority = 2, sub-priority = 3 */
+	IFS0bits.T2IF = 0;
+	IPC2bits.T2IP = 2;
+	IPC2bits.T2IS = 3;
+	IEC0bits.T2IE = 1;
+
+	/* start the timer */
+	T2CONbits.ON = 1;
+
+	return 0;
 }
 
 
@@ -161,6 +193,14 @@ int sas_ack_send(void) {
 	antenna_send(ack_tx_buf, ACK_PACKET_SIZE);
 
 	return 0;
+}
+
+
+void __ISR_AT_VECTOR(_TIMER_2_VECTOR, IPL2SRS) _timer2_isr_h(void) {
+	/* TODO: trigger sending rocket packet */
+
+	/* clear timer 2 interrupt flag */
+	IFS0bits.T2IF = 0;
 }
 
 
